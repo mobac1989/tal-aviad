@@ -362,7 +362,6 @@ const App: React.FC = () => {
                           {mg.episodes.sort((a, b) => a.day - b.day).map(ep => {
                             const isCurrent = currentEpisode?.id === ep.id;
                             const isPlayed = playback.playedIds.includes(ep.id);
-                            const summary = summaries[ep.id];
                             
                             return (
                               <div 
@@ -385,12 +384,9 @@ const App: React.FC = () => {
                                       <span className="text-slate-300 font-light">|</span>
                                       <span className="text-black font-bold tabular-nums">{ep.date}</span>
                                     </div>
-                                    {summary?.status === 'approved' ? (
-                                      <p className="text-xs text-slate-400 truncate mt-0.5 font-medium leading-relaxed">
-                                        {summary.text}
-                                      </p>
-                                    ) : ep.notes ? (
-                                      <span className="text-[10px] text-slate-300 line-clamp-1 font-medium">{ep.notes}</span>
+                                    {/* Community summaries are hidden globally for now as per user request. Only ep.notes are shown. */}
+                                    {ep.notes ? (
+                                      <span className="text-[10px] text-slate-300 line-clamp-1 font-medium mt-0.5">{ep.notes}</span>
                                     ) : null}
                                   </div>
                                 </div>
