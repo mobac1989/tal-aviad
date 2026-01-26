@@ -51,9 +51,19 @@ const App: React.FC = () => {
         const parsed = parseCSV(text);
         setEpisodes(parsed);
         setLoading(false);
+        
         if (parsed.length > 0) {
-          const maxYear = Math.max(...parsed.map(e => e.year));
-          setActiveYear(maxYear);
+          // Logic: Set initial year based on last played episode if it exists, otherwise max year
+          let initialYear = Math.max(...parsed.map(e => e.year));
+          
+          if (playback.lastPlayedId) {
+            const lastPlayedEpisode = parsed.find(e => e.id === playback.lastPlayedId);
+            if (lastPlayedEpisode) {
+              initialYear = lastPlayedEpisode.year;
+            }
+          }
+          
+          setActiveYear(initialYear);
         }
       })
       .catch(err => {
