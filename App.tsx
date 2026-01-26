@@ -30,7 +30,6 @@ const App: React.FC = () => {
 
   const yearScrollRef = useRef<HTMLDivElement>(null);
   const adminClickCounter = useRef(0);
-  // Fix: Changed NodeJS.Timeout to any to fix "Cannot find namespace 'NodeJS'" error in browser environments.
   const adminClickTimer = useRef<any>(null);
 
   const sortedEpisodes = useMemo(() => {
@@ -40,6 +39,27 @@ const App: React.FC = () => {
       return dateA - dateB;
     });
   }, [episodes]);
+
+  // Center the active year button in the scrollable list
+  useEffect(() => {
+    if (!loading && activeYear && yearScrollRef.current) {
+      // Use a small timeout to ensure DOM is fully rendered before scrolling
+      const timer = setTimeout(() => {
+        const container = yearScrollRef.current;
+        if (!container) return;
+        
+        const activeButton = container.querySelector(`button[data-year="${activeYear}"]`) as HTMLElement;
+        if (activeButton) {
+          activeButton.scrollIntoView({
+            behavior: 'smooth',
+            inline: 'center',
+            block: 'nearest'
+          });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, activeYear]);
 
   useEffect(() => {
     fetch('/episodes.csv')
@@ -53,7 +73,6 @@ const App: React.FC = () => {
         setLoading(false);
         
         if (parsed.length > 0) {
-          // Logic: Set initial year based on last played episode if it exists, otherwise max year
           let initialYear = Math.max(...parsed.map(e => e.year));
           
           if (playback.lastPlayedId) {
@@ -309,6 +328,7 @@ const App: React.FC = () => {
                   {yearGroups.map(yg => (
                     <button
                       key={yg.year}
+                      data-year={yg.year}
                       onClick={() => {
                         setActiveYear(yg.year);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -384,7 +404,6 @@ const App: React.FC = () => {
                                       <span className="text-slate-300 font-light">|</span>
                                       <span className="text-black font-bold tabular-nums">{ep.date}</span>
                                     </div>
-                                    {/* Community summaries are hidden globally for now as per user request. Only ep.notes are shown. */}
                                     {ep.notes ? (
                                       <span className="text-[10px] text-slate-300 line-clamp-1 font-medium mt-0.5">{ep.notes}</span>
                                     ) : null}
