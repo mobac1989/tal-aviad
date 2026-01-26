@@ -29,6 +29,7 @@ const Player: React.FC<PlayerProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   // Summary feature is currently fully hidden from UI
   const [showSummaryForm, setShowSummaryForm] = useState(false);
@@ -92,11 +93,28 @@ const Player: React.FC<PlayerProps> = ({
     if (audioRef.current) audioRef.current.currentTime = currentTime;
   };
 
-  const handleSubmitSummary = () => {
-    if (newSummaryText.trim()) {
-      onAddSummary(newSummaryText);
-      setIsSubmitted(true);
-      setTimeout(() => setShowSummaryForm(false), 2000);
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetch(episode.url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      // Filename construction in Hebrew
+      const fileName = `טל ואביעד - ${episode.weekday} ${episode.date.replace(/\//g, '-')}.mp3`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setShowSettings(false);
+    } catch (error) {
+      console.error('Download failed', error);
+      // Fallback: Open in new tab if CORS or other fetch issues occur
+      window.open(episode.url, '_blank');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -133,8 +151,11 @@ const Player: React.FC<PlayerProps> = ({
               </button>
               
               {showSettings && (
-                <div className="absolute bottom-full left-0 mb-3 bg-white border border-slate-100 shadow-2xl rounded-2xl p-2 min-w-[120px] animate-in fade-in slide-in-from-bottom-2 duration-200 z-[160]">
-                  <div className="px-3 py-2 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-50 mb-1">מהירות ניגון</div>
+                <div 
+                  dir="rtl"
+                  className="absolute bottom-full right-0 mb-3 bg-white border border-slate-100 shadow-2xl rounded-2xl p-2 min-w-[160px] animate-in fade-in slide-in-from-bottom-2 duration-200 z-[160]"
+                >
+                  <div className="px-3 py-2 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-50 mb-1 text-right">מהירות ניגון</div>
                   {speeds.map(speed => (
                     <button
                       key={speed}
@@ -142,12 +163,27 @@ const Player: React.FC<PlayerProps> = ({
                         setPlaybackRate(speed);
                         setShowSettings(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-between ${playbackRate === speed ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-slate-600'}`}
+                      className={`w-full text-right px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-between ${playbackRate === speed ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-slate-600'}`}
                     >
                       <span>x{speed}</span>
                       {playbackRate === speed && <div className="w-1.5 h-1.5 bg-brand rounded-full"></div>}
                     </button>
                   ))}
+                  
+                  <div className="h-px bg-slate-50 my-1 mx-2"></div>
+                  
+                  <button
+                    onClick={handleDownload}
+                    disabled={isDownloading}
+                    className="w-full text-right px-3 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-between text-slate-600 hover:bg-brand/5 hover:text-brand"
+                  >
+                    <span>הורדה למכשיר</span>
+                    {isDownloading ? (
+                      <div className="w-3.5 h-3.5 border-2 border-brand/20 border-t-brand rounded-full animate-spin"></div>
+                    ) : (
+                      <DownloadIcon className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
               )}
             </div>
@@ -164,20 +200,6 @@ const Player: React.FC<PlayerProps> = ({
             )}
           </div>
         </div>
-
-        {/* Summary Section - Fully hidden as requested */}
-        {/*
-        <div className="mb-4" dir="rtl">
-          {summary?.status === 'approved' ? (
-            <div className="bg-brand/5 border border-brand/5 p-3 rounded-xl relative overflow-hidden">
-              <div className="absolute right-0 top-0 bottom-0 w-1 bg-brand/40"></div>
-              <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium">
-                {summary.text}
-              </p>
-            </div>
-          ) : null}
-        </div>
-        */}
 
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -243,6 +265,9 @@ const CloseIcon = () => (
 );
 const SettingsIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 00 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+);
+const DownloadIcon = ({className}: {className?: string}) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
 );
 
 export default Player;
