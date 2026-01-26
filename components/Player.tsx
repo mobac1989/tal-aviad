@@ -30,6 +30,7 @@ const Player: React.FC<PlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   
+  // Summary feature is currently hidden from UI but logic remains for approved items
   const [showSummaryForm, setShowSummaryForm] = useState(false);
   const [newSummaryText, setNewSummaryText] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -164,7 +165,7 @@ const Player: React.FC<PlayerProps> = ({
           </div>
         </div>
 
-        {/* Summary Section - Smaller and tighter */}
+        {/* Summary Section - Only shows approved summaries, "Add Summary" button is hidden */}
         <div className="mb-4" dir="rtl">
           {summary?.status === 'approved' ? (
             <div className="bg-brand/5 border border-brand/5 p-3 rounded-xl relative overflow-hidden">
@@ -173,36 +174,7 @@ const Player: React.FC<PlayerProps> = ({
                 {summary.text}
               </p>
             </div>
-          ) : isSubmitted ? (
-            <div className="text-center py-2 text-brand text-xs font-bold">תודה! התקציר נשלח לבדיקה.</div>
-          ) : showSummaryForm ? (
-            <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <textarea 
-                autoFocus
-                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:ring-2 focus:ring-brand/20 outline-none transition-all resize-none"
-                placeholder="מה קרה בפרק?"
-                maxLength={150}
-                rows={2}
-                value={newSummaryText}
-                onChange={(e) => setNewSummaryText(e.target.value)}
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-slate-400 font-bold">{newSummaryText.length}/150</span>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowSummaryForm(false)} className="px-3 py-1 text-[10px] font-bold text-slate-400">ביטול</button>
-                  <button disabled={!newSummaryText.trim()} onClick={handleSubmitSummary} className="px-4 py-1 bg-brand text-white text-[10px] font-bold rounded-full disabled:opacity-50">שלח</button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <button 
-              onClick={() => setShowSummaryForm(true)}
-              className="w-full py-2 px-4 border border-dashed border-slate-200 hover:border-brand/30 hover:bg-brand/5 rounded-xl flex items-center justify-center gap-2 text-slate-400 hover:text-brand transition-all group"
-            >
-              <EditIcon className="w-3.5 h-3.5" />
-              <span className="text-xs font-bold">הוסף תקציר לפרק</span>
-            </button>
-          )}
+          ) : null /* Hidden the "Add Summary" button and form for now as per user request */}
         </div>
 
         <div className="space-y-4">
