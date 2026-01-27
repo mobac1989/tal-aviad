@@ -43,7 +43,6 @@ const App: React.FC = () => {
   // Center the active year button in the scrollable list
   useEffect(() => {
     if (!loading && activeYear && yearScrollRef.current) {
-      // Use a small timeout to ensure DOM is fully rendered before scrolling
       const timer = setTimeout(() => {
         const container = yearScrollRef.current;
         if (!container) return;
@@ -382,6 +381,7 @@ const App: React.FC = () => {
                           {mg.episodes.sort((a, b) => a.day - b.day).map(ep => {
                             const isCurrent = currentEpisode?.id === ep.id;
                             const isPlayed = playback.playedIds.includes(ep.id);
+                            const approvedSummary = summaries[ep.id]?.status === 'approved' ? summaries[ep.id].text : null;
                             
                             return (
                               <div 
@@ -404,9 +404,16 @@ const App: React.FC = () => {
                                       <span className="text-slate-300 font-light">|</span>
                                       <span className="text-black font-bold tabular-nums">{ep.date}</span>
                                     </div>
-                                    {ep.notes ? (
-                                      <span className="text-[10px] text-slate-300 line-clamp-1 font-medium mt-0.5">{ep.notes}</span>
-                                    ) : null}
+                                    <div className="flex flex-col gap-0.5">
+                                      {ep.notes && (
+                                        <span className="text-[10px] text-slate-300 line-clamp-1 font-medium">{ep.notes}</span>
+                                      )}
+                                      {approvedSummary && (
+                                        <span className="text-[10px] text-slate-400 line-clamp-1 font-medium">
+                                          {approvedSummary}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
 

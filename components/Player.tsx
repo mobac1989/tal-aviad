@@ -31,7 +31,6 @@ const Player: React.FC<PlayerProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   
-  // Summary feature is currently fully hidden from UI
   const [showSummaryForm, setShowSummaryForm] = useState(false);
   const [newSummaryText, setNewSummaryText] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -101,7 +100,6 @@ const Player: React.FC<PlayerProps> = ({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      // Filename construction in Hebrew
       const fileName = `טל ואביעד - ${episode.weekday} ${episode.date.replace(/\//g, '-')}.mp3`;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
@@ -111,10 +109,17 @@ const Player: React.FC<PlayerProps> = ({
       setShowSettings(false);
     } catch (error) {
       console.error('Download failed', error);
-      // Fallback: Open in new tab if CORS or other fetch issues occur
       window.open(episode.url, '_blank');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleSubmitSummary = () => {
+    if (newSummaryText.trim()) {
+      onAddSummary(newSummaryText);
+      setIsSubmitted(true);
+      setTimeout(() => setShowSummaryForm(false), 2000);
     }
   };
 
@@ -126,6 +131,9 @@ const Player: React.FC<PlayerProps> = ({
 
   const progressPct = duration ? (currentTime / duration) * 100 : 0;
   const speeds = [1, 1.2, 1.5, 2];
+
+  // Logic to hide the "Add Summary" button if a summary already exists or was just submitted
+  const shouldHideAddButton = !!summary || isSubmitted;
 
   return (
     <div dir="ltr" className="fixed bottom-0 left-0 right-0 z-[150] bg-white text-slate-900 border-t border-slate-100 shadow-[0_-15px_40px_rgba(0,0,0,0.08)] rounded-t-[2.5rem] animate-in slide-in-from-bottom duration-500 ease-out overflow-visible">
@@ -153,7 +161,7 @@ const Player: React.FC<PlayerProps> = ({
               {showSettings && (
                 <div 
                   dir="rtl"
-                  className="absolute bottom-full right-0 mb-3 bg-white border border-slate-100 shadow-2xl rounded-2xl p-2 min-w-[160px] animate-in fade-in slide-in-from-bottom-2 duration-200 z-[160]"
+                  className="absolute bottom-full left-0 mb-3 bg-white border border-slate-100 shadow-2xl rounded-2xl p-2 min-w-[160px] animate-in fade-in slide-in-from-bottom-2 duration-200 z-[160]"
                 >
                   <div className="px-3 py-2 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-50 mb-1 text-right">מהירות ניגון</div>
                   {speeds.map(speed => (
@@ -187,10 +195,20 @@ const Player: React.FC<PlayerProps> = ({
                 </div>
               )}
             </div>
+
+            {!shouldHideAddButton && (
+              <button 
+                onClick={() => setShowSummaryForm(!showSummaryForm)}
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all ${showSummaryForm ? 'bg-brand text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                title="Add Summary"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              </button>
+            )}
           </div>
           
           <div className="flex-1 min-w-0 text-right">
-            <h4 className="font-black text-xl md:text-2xl text-slate-800 leading-tight truncate">
+            <h4 className="font-black text-lg md:text-2xl text-slate-800 leading-tight truncate">
               {episode.weekday} <span className="text-brand/30 font-light mx-0.5">|</span> {episode.date}
             </h4>
             {playbackRate !== 1 && (
@@ -200,6 +218,61 @@ const Player: React.FC<PlayerProps> = ({
             )}
           </div>
         </div>
+
+        {/* Community Summary Display */}
+        <div className="mb-4" dir="rtl">
+          {summary?.status === 'approved' ? (
+            <div className="bg-brand/5 border border-brand/5 p-3 rounded-xl relative overflow-hidden">
+              <div className="absolute right-0 top-0 bottom-0 w-1 bg-brand/40"></div>
+              <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium">
+                {summary.text}
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Summary Submission Form */}
+        {showSummaryForm && (
+          <div className="mb-6 animate-in fade-in slide-in-from-top-2 duration-300" dir="rtl">
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 shadow-inner">
+              {isSubmitted ? (
+                <div className="text-center py-4 space-y-2">
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <h5 className="font-bold text-slate-800">התקציר נשלח בהצלחה!</h5>
+                  <p className="text-xs text-slate-500">תודה שעזרת לקהילה. התקציר יפורסם לאחר אישור המערכת.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">הוסיפו תקציר לטובת כולם</label>
+                    <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full">יישלח לאישור המערכת</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium">מה היה בפרק? התקציר שלכם יעזור למאזינים אחרים למצוא רגעים אהובים ויוצג לכל המשתמשים.</p>
+                  <textarea 
+                    className="w-full p-3 text-sm border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand/20 bg-white"
+                    placeholder="כתבו כאן את התקציר (עד 150 תווים)..."
+                    value={newSummaryText}
+                    onChange={(e) => setNewSummaryText(e.target.value)}
+                    rows={3}
+                    maxLength={150}
+                  />
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-slate-300 font-bold">{newSummaryText.length}/150</span>
+                    <button 
+                      onClick={handleSubmitSummary}
+                      disabled={!newSummaryText.trim()}
+                      className="bg-brand text-white px-6 py-2 rounded-full text-xs font-black shadow-lg shadow-brand/20 disabled:opacity-30 disabled:shadow-none transition-all active:scale-95"
+                    >
+                      שלח לאישור ופרסום
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="space-y-1.5">
