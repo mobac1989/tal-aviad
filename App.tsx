@@ -31,7 +31,7 @@ const App: React.FC = () => {
   const [initialSeekTime, setInitialSeekTime] = useState<number | null>(null);
   const [playerKey, setPlayerKey] = useState<number>(0);
   const [sharedDescription, setSharedDescription] = useState<string | null>(null);
-  const [activeYear, setActiveYear] = useState<number>(2023);
+  const [activeYear, setActiveYear] = useState<number>(2011);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
@@ -90,7 +90,7 @@ const App: React.FC = () => {
         }
 
         if (parsed.length > 0) {
-          let initialYear = Math.max(...parsed.map(e => e.year));
+          let initialYear = 2011;
           if (playback.lastPlayedId) {
             const lastPlayedEpisode = parsed.find(e => e.id === playback.lastPlayedId);
             if (lastPlayedEpisode) initialYear = lastPlayedEpisode.year;
@@ -117,10 +117,13 @@ const App: React.FC = () => {
   }, [sharedClips]);
 
   const handlePlay = (episode: Episode, seekTo?: number) => {
+    const savedProgress = playback.progress[episode.id] || 0;
+    const startTime = seekTo !== undefined ? seekTo : savedProgress;
+
     if (seekTo === undefined) setSharedDescription(null);
     
+    setInitialSeekTime(startTime);
     setCurrentEpisode(episode);
-    setInitialSeekTime(seekTo ?? null);
     setPlayerKey(Date.now());
     setPlayback(prev => ({ ...prev, lastPlayedId: episode.id }));
   };
@@ -213,7 +216,6 @@ const App: React.FC = () => {
     );
     if (results.length === 0) return null;
     
-    // Sort results by date descending
     const sortedResults = results.sort((a, b) => new Date(b.dateISO).getTime() - new Date(a.dateISO).getTime());
     
     return { year: 0, months: [{ month: 0, monthName: "תוצאות חיפוש", episodes: sortedResults }] };
@@ -249,7 +251,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 space-y-4">
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-6 pb-2 space-y-4">
         {showAdmin ? (
           <AdminDashboard 
             episodes={episodes} summaries={summaries} sharedClips={sharedClips}
@@ -260,7 +262,7 @@ const App: React.FC = () => {
         ) : (
           <>
             {!searchQuery && featuredEpisode && (
-              <div className="overflow-hidden rounded-4xl hero-gradient py-10 px-4 md:py-14 md:px-12 text-white flex items-center gap-1 md:gap-8 mb-4 border border-white/5">
+              <div className="overflow-hidden rounded-4xl hero-gradient py-10 px-4 md:py-14 md:px-12 text-white flex items-center gap-1 md:gap-8 mb-2 border border-white/5">
                 <button onClick={() => navigateFeatured('prev')} className="flex-shrink-0 w-10 h-10 md:w-14 md:h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all z-10 md:hover:scale-110 md:active:scale-95">
                   <ChevronRightIcon className="w-6 h-6 md:w-8 md:h-8" />
                 </button>
@@ -275,8 +277,18 @@ const App: React.FC = () => {
                     <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-[1] tracking-tighter mb-2">{featuredEpisode.weekday}</h2>
                     <h2 className="text-xl md:text-2xl text-white/60 font-black tabular-nums">{featuredEpisode.date}</h2>
                     <div className="pt-8 md:pt-6">
-                      <button onClick={() => handlePlay(featuredEpisode)} className={`${isFeaturedPlaying ? 'bg-teal-100 text-brandDark' : 'bg-white text-brand'} px-10 md:px-12 py-3 md:py-4 rounded-2xl font-black text-lg md:text-xl flex items-center gap-4 mx-auto md:mr-0 md:ml-auto md:hover:scale-105 md:active:scale-95 transition-all`}>
-                        <PlayIconSmall className="w-6 h-6 fill-current" />
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isFeaturedPlaying) {
+                            setCurrentEpisode(null);
+                          } else {
+                            handlePlay(featuredEpisode);
+                          }
+                        }} 
+                        className={`px-8 md:px-12 py-3 md:py-4 rounded-2xl font-black text-lg md:text-xl flex items-center justify-center gap-4 mx-auto md:mr-0 md:ml-auto md:hover:scale-105 active:scale-95 transition-all whitespace-nowrap overflow-hidden relative min-w-fit ${isFeaturedPlaying ? 'shimmer-light text-brandDark' : 'bg-white text-brand'}`}
+                      >
+                        <PlayIconSmall className={`w-6 h-6 ${isFeaturedPlaying ? 'fill-brandDark' : 'fill-brand'}`} />
                         <span>{isFeaturedPlaying ? 'מתנגן עכשיו...' : 'נגן עכשיו'}</span>
                       </button>
                     </div>
@@ -300,13 +312,16 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div className="space-y-3 pb-44">
+            <div className="space-y-3 pb-0">
               {filteredData?.months.map((mg) => {
                 const monthKey = `${filteredData.year}-${mg.month}`;
                 const isExpanded = expandedMonths[monthKey] || !!searchQuery;
                 return (
                   <div key={monthKey} className="relative">
-                    <button onClick={() => setExpandedMonths(prev => ({ ...prev, [monthKey]: !isExpanded }))} className={`w-full flex items-center justify-between p-4 transition-all sticky top-[68px] z-[90] border border-slate-200 shadow-none ${isExpanded ? 'rounded-t-xl border-b-brand/20 bg-white' : 'rounded-xl bg-white'}`}>
+                    <button 
+                      onClick={() => setExpandedMonths(prev => ({ ...prev, [monthKey]: !isExpanded }))} 
+                      className={`w-full flex items-center justify-between p-4 transition-all duration-200 sticky top-[68px] z-[90] border border-slate-200 shadow-none md:hover:border-slate-300 ${isExpanded ? 'rounded-t-xl border-b-brand/20 bg-white' : 'rounded-xl bg-white'}`}
+                    >
                       <div className="absolute right-0 top-3 bottom-3 w-1 bg-brand rounded-l-full"></div>
                       <div className="flex items-center gap-4"><h3 className="text-slate-800 font-bold text-lg">{mg.monthName}</h3><span className="text-slate-400 text-xs font-medium bg-slate-50 px-2 py-0.5 rounded">{mg.episodes.length} תוכניות</span></div>
                       <div className={`text-slate-300 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}><ChevronDownIcon /></div>
@@ -318,7 +333,7 @@ const App: React.FC = () => {
                             const isCurrent = currentEpisode?.id === ep.id;
                             const isPlayed = playback.playedIds.includes(ep.id);
                             return (
-                              <div key={ep.id} onClick={() => handlePlay(ep)} className={`group flex items-center justify-between p-4 cursor-pointer transition-all ${isCurrent ? 'bg-brand/5' : 'hover:bg-slate-50'} ${isPlayed && !isCurrent ? 'opacity-60' : 'opacity-100'}`}>
+                              <div key={ep.id} onClick={() => isCurrent ? setCurrentEpisode(null) : handlePlay(ep)} className={`group flex items-center justify-between p-4 cursor-pointer transition-all ${isCurrent ? 'bg-brand/5' : 'hover:bg-slate-50'} ${isPlayed && !isCurrent ? 'opacity-60' : 'opacity-100'}`}>
                                 <div className="flex items-center gap-4 flex-1 min-w-0">
                                   <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${isCurrent ? 'bg-brand text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-brand/10 group-hover:text-brand'}`}>{isCurrent ? <VolumeIcon /> : <PlayIconSmall className="w-3.5 h-3.5 fill-current translate-x-0.5" />}</div>
                                   <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -326,7 +341,7 @@ const App: React.FC = () => {
                                     <div className="flex flex-col gap-0.5">{ep.notes && <span className="text-[10px] text-slate-300 line-clamp-1 font-medium">{ep.notes}</span>}{summaries[ep.id]?.status === 'approved' && <span className="text-[10px] text-slate-400 line-clamp-1 font-medium">{summaries[ep.id].text}</span>}</div>
                                   </div>
                                 </div>
-                                <div className="flex items-center mr-4"><button onClick={(e) => toggleMarkAsPlayed(ep.id, e)} className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all shadow-none hover:scale-110 active:scale-90 ${isPlayed ? 'bg-brand/10 border-brand text-brand' : 'bg-white border-slate-100 text-slate-200 hover:border-brand/30 hover:text-brand/30'}`}><CheckIconSmall className={`w-4 h-4 ${isPlayed ? 'opacity-100' : 'opacity-30'}`} /></button></div>
+                                <div className="flex items-center mr-4"><button onClick={(e) => toggleMarkAsPlayed(ep.id, e)} className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all shadow-none md:hover:scale-110 active:scale-90 ${isPlayed ? 'bg-brand/10 border-brand text-brand' : 'bg-white border-slate-100 text-slate-200 hover:border-brand/30 hover:text-brand/30'}`}><CheckIconSmall className={`w-4 h-4 ${isPlayed ? 'opacity-100' : 'opacity-30'}`} /></button></div>
                               </div>
                             );
                           })}
@@ -336,6 +351,15 @@ const App: React.FC = () => {
                   </div>
                 );
               })}
+              
+              <footer className="pt-2 pb-1 flex flex-col items-center justify-center space-y-3 opacity-80 hover:opacity-100 transition-opacity">
+                <div className="w-full h-px bg-slate-200/80"></div>
+                <div className="text-[10px] font-normal text-slate-600 flex items-center gap-2 tracking-wider">
+                  <span>עיצוב ופיתוח אפליקציה</span>
+                  <a href="mailto:mobac89@gmail.com" className="text-brand hover:text-brandDark transition-colors">mobac89</a>
+                </div>
+              </footer>
+
               {searchQuery && !filteredData && (
                 <div className="py-20 text-center text-slate-300 font-bold">לא נמצאו תוכניות התואמות לחיפוש</div>
               )}
@@ -348,7 +372,7 @@ const App: React.FC = () => {
         <Player 
           key={`${currentEpisode.id}-${playerKey}`}
           episode={currentEpisode} 
-          initialTime={(initialSeekTime ?? playback.progress[currentEpisode.id]) || 0}
+          initialTime={initialSeekTime ?? 0}
           summary={summaries[currentEpisode.id]}
           sharedDescription={sharedDescription}
           onAddSummary={(text) => handleAddSummary(currentEpisode.id, text)}

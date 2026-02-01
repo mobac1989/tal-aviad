@@ -61,12 +61,23 @@
           100% { background-position: 200% 0; }
         }
         .shimmer-light {
-          /* Softer transition: Color difference is reduced (#E4F6F6 to #F2FBFB instead of pure white) */
           background: linear-gradient(115deg, #E4F6F6 20%, #F2FBFB 50%, #E4F6F6 80%);
           background-size: 200% 100%;
           animation: shimmerLight 5s infinite linear;
           background-color: #E4F6F6;
         }
+
+        @keyframes eq-bar {
+          0%, 100% { height: 30%; opacity: 0.6; }
+          50% { height: 75%; opacity: 1; }
+        }
+        .eq-bar {
+          animation: eq-bar 1.8s ease-in-out infinite;
+        }
+        .eq-bar-1 { animation-delay: 0.2s; }
+        .eq-bar-2 { animation-delay: 0.5s; }
+        .eq-bar-3 { animation-delay: 0.8s; }
+        .eq-bar-4 { animation-delay: 0.4s; }
     </style>
 <script type="importmap">
 {

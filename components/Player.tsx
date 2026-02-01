@@ -26,6 +26,8 @@ const Player: React.FC<PlayerProps> = ({
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const hasSeekedInitialRef = useRef(false);
+  const lastSavedTimeRef = useRef(initialTime);
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(initialTime);
   const [duration, setDuration] = useState(0);
@@ -36,13 +38,22 @@ const Player: React.FC<PlayerProps> = ({
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   
+  const [isMounted, setIsMounted] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareClipDescription, setShareClipDescription] = useState("");
   const [shareTimestamp, setShareTimestamp] = useState(0);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     hasSeekedInitialRef.current = false;
+    lastSavedTimeRef.current = initialTime;
     setIsLoading(true);
     setAutoplayBlocked(false);
     setAudioError(null);
@@ -63,24 +74,29 @@ const Player: React.FC<PlayerProps> = ({
 
   const handleCanPlay = () => {
     if (audioRef.current && !hasSeekedInitialRef.current) {
-      audioRef.current.currentTime = initialTime;
-      hasSeekedInitialRef.current = true;
-      setIsLoading(false);
-      setAudioError(null);
-      
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.log("Autoplay was prevented:", error);
-          setAutoplayBlocked(true);
-        });
-      }
+      const audio = audioRef.current;
+      setTimeout(() => {
+        if (audio) {
+          audio.currentTime = initialTime;
+          hasSeekedInitialRef.current = true;
+          setIsLoading(false);
+          setAudioError(null);
+          
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((error) => {
+              console.log("Autoplay prevented:", error);
+              setAutoplayBlocked(true);
+            });
+          }
+        }
+      }, 150);
     }
   };
 
   const handleAudioError = () => {
     setIsLoading(false);
-    setAudioError("מצטערים, לא ניתן להפעיל את התוכנית הזו כרגע (הקישור עשוי להיות שבור).");
+    setAudioError("מצטערים, לא ניתן להפעיל את התוכנית הזו כרגע.");
     setIsPlaying(false);
   };
 
@@ -100,6 +116,7 @@ const Player: React.FC<PlayerProps> = ({
       const newTime = audioRef.current.currentTime + seconds;
       audioRef.current.currentTime = Math.max(0, Math.min(newTime, duration));
       setCurrentTime(audioRef.current.currentTime);
+      onProgress(audioRef.current.currentTime);
     }
   };
 
@@ -107,8 +124,10 @@ const Player: React.FC<PlayerProps> = ({
     if (audioRef.current && !isDragging) {
       const time = audioRef.current.currentTime;
       setCurrentTime(time);
-      if (Math.floor(time) % 10 === 0) {
+      
+      if (Math.abs(time - lastSavedTimeRef.current) >= 3) {
         onProgress(time);
+        lastSavedTimeRef.current = time;
       }
     }
   };
@@ -129,6 +148,8 @@ const Player: React.FC<PlayerProps> = ({
     setIsDragging(false);
     if (audioRef.current) {
       audioRef.current.currentTime = currentTime;
+      onProgress(currentTime);
+      lastSavedTimeRef.current = currentTime;
     }
   };
 
@@ -143,6 +164,16 @@ const Player: React.FC<PlayerProps> = ({
       setShareTimestamp(audioRef.current.currentTime);
       setShowShareModal(true);
     }
+  };
+
+  const handleInternalClose = () => {
+    if (audioRef.current) {
+      onProgress(audioRef.current.currentTime);
+    }
+    setIsExiting(true);
+    setTimeout(() => {
+      onClose();
+    }, 300);
   };
 
   const generateShareUrl = () => {
@@ -181,219 +212,210 @@ const Player: React.FC<PlayerProps> = ({
 
   const progressPct = duration ? (currentTime / duration) * 100 : 0;
   const speeds = [1, 1.2, 1.5, 2];
+  const transitionClass = isExiting || !isMounted ? "translate-y-full" : "translate-y-0";
 
   return (
-    <div dir="ltr" className="fixed bottom-0 left-0 right-0 z-[150] bg-white text-slate-900 border-t border-slate-100 shadow-[0_-15px_40px_rgba(0,0,0,0.12)] rounded-t-[2.5rem] animate-in slide-in-from-bottom duration-500 ease-out overflow-visible">
-      {/* Autoplay blocked overlay */}
-      {autoplayBlocked && !audioError && (
-        <div className="absolute inset-0 z-[170] bg-white/80 backdrop-blur-md rounded-t-[2.5rem] flex items-center justify-center animate-in fade-in duration-300">
-          <button 
-            onClick={togglePlay}
-            className="flex flex-col items-center gap-4 group"
-          >
-            <div className="w-24 h-24 bg-brand text-white rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform active:scale-95">
-              <PlayIconLarge className="w-10 h-10 translate-x-1" />
-            </div>
-            <span className="text-brand font-black text-lg" dir="rtl">לחצו להאזנה לקטע המשותף</span>
-          </button>
-        </div>
-      )}
-
-      {/* Audio error overlay */}
-      {audioError && (
-        <div className="absolute inset-0 z-[175] bg-white rounded-t-[2.5rem] flex items-center justify-center p-8 animate-in fade-in duration-300 text-center">
-          <div className="space-y-4 max-w-xs">
-            <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
-              <ErrorIcon className="w-8 h-8" />
-            </div>
-            <p className="text-slate-800 font-bold" dir="rtl">{audioError}</p>
-            <button onClick={onClose} className="text-brand font-black text-sm uppercase tracking-widest">סגור נגן</button>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-xl mx-auto px-6 py-6 md:py-8">
-        
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-brand transition-all bg-slate-50 hover:bg-brand/10 rounded-full flex-shrink-0">
-              <CloseIcon />
+    <>
+      <div 
+        dir="ltr" 
+        className={`fixed bottom-0 left-0 right-0 z-[150] bg-white text-slate-900 border-t border-slate-100 shadow-[0_-15px_40px_rgba(0,0,0,0.12)] rounded-t-[2.5rem] transition-transform duration-300 ease-in-out transform ${transitionClass}`}
+      >
+        {autoplayBlocked && !audioError && (
+          <div className="absolute inset-0 z-[170] bg-white/80 backdrop-blur-md rounded-t-[2.5rem] flex items-center justify-center">
+            <button onClick={togglePlay} className="flex flex-col items-center gap-4 group">
+              <div className="w-24 h-24 bg-brand text-white rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform duration-300 ease-in-out active:scale-95">
+                <PlayIconLarge className="w-10 h-10 translate-x-1" />
+              </div>
+              <span className="text-brand font-black text-lg" dir="rtl">לחצו להאזנה</span>
             </button>
-            <div className="relative">
-              <button onClick={() => setShowSettings(!showSettings)} className={`w-10 h-10 flex items-center justify-center rounded-full transition-all ${showSettings ? 'bg-brand text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
-                <SettingsIcon />
-              </button>
-              {showSettings && (
-                <div dir="rtl" className="absolute bottom-full left-0 mb-3 bg-white border border-slate-100 shadow-2xl rounded-2xl p-2 min-w-[160px] animate-in fade-in slide-in-from-bottom-2 duration-200 z-[160]">
-                  <div className="px-3 py-2 text-[10px] font-black text-slate-400 uppercase border-b border-slate-50 mb-1 text-right">מהירות ניגון</div>
-                  {speeds.map(speed => (
-                    <button key={speed} onClick={() => { setPlaybackRate(speed); setShowSettings(false); }}
-                      className={`w-full text-right px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-between ${playbackRate === speed ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-slate-600'}`}>
-                      <span>x{speed}</span>
-                      {playbackRate === speed && <div className="w-1.5 h-1.5 bg-brand rounded-full"></div>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
-          <div className="flex-1 min-w-0 text-right">
-            <h4 className="font-black text-lg md:text-2xl text-slate-800 leading-tight truncate">
-              {episode.weekday} <span className="text-brand/30 font-light mx-0.5">|</span> {episode.date}
-            </h4>
-          </div>
-        </div>
+        )}
 
-        {sharedDescription ? (
-          <div className="mb-4" dir="rtl">
-            <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl">
-              <span className="text-[10px] font-black text-brand uppercase tracking-widest block mb-1">קטע משותף:</span>
-              <p className="text-slate-800 text-sm md:text-base leading-relaxed font-black italic">"{sharedDescription}"</p>
-            </div>
-          </div>
-        ) : summary?.status === 'approved' && (
-          <div className="mb-2" dir="rtl">
-            <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
-              <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium">{summary.text}</p>
+        {audioError && (
+          <div className="absolute inset-0 z-[175] bg-white rounded-t-[2.5rem] flex items-center justify-center p-8 text-center">
+            <div className="space-y-4 max-w-xs">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+                <ErrorIcon className="w-8 h-8" />
+              </div>
+              <p className="text-slate-800 font-bold" dir="rtl">{audioError}</p>
+              <button onClick={handleInternalClose} className="text-brand font-black text-sm uppercase tracking-widest">סגור נגן</button>
             </div>
           </div>
         )}
 
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <div className="relative h-4 flex items-center group">
-              <div className="absolute w-full h-1.5 bg-slate-100 rounded-full"></div>
-              <div className="absolute h-1.5 bg-brand rounded-full pointer-events-none z-10" style={{ width: `${progressPct}%` }} />
-              <input type="range" min={0} max={duration || 100} step="1" value={currentTime}
-                onChange={onSeekChange} onMouseDown={onSeekStart} onMouseUp={onSeekEnd} onTouchStart={onSeekStart} onTouchEnd={onSeekEnd}
-                className="absolute w-full h-4 bg-transparent appearance-none cursor-pointer outline-none z-20 
-                           [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 
-                           [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand [&::-webkit-slider-thumb]:border-4 
-                           [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg"
-              />
+        <div className="max-w-xl mx-auto px-6 py-6 md:py-8">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <button onClick={handleInternalClose} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-brand transition-all duration-300 bg-slate-50 hover:bg-brand/10 rounded-full flex-shrink-0">
+                <CloseIcon />
+              </button>
+              <div className="relative">
+                <button onClick={() => setShowSettings(!showSettings)} className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${showSettings ? 'bg-brand text-white' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
+                  <SettingsIcon />
+                </button>
+                {showSettings && (
+                  <div dir="rtl" className="absolute bottom-full left-0 mb-3 bg-white border border-slate-100 shadow-2xl rounded-2xl p-2 min-w-[160px] animate-in fade-in slide-in-from-bottom-2 duration-200 z-[160]">
+                    <div className="px-3 py-2 text-[10px] font-black text-slate-400 uppercase border-b border-slate-50 mb-1 text-right">מהירות ניגון</div>
+                    {speeds.map(speed => (
+                      <button key={speed} onClick={() => { setPlaybackRate(speed); setShowSettings(false); }}
+                        className={`w-full text-right px-3 py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-between ${playbackRate === speed ? 'bg-brand/10 text-brand' : 'hover:bg-slate-50 text-slate-600'}`}>
+                        <span>x{speed}</span>
+                        {playbackRate === speed && <div className="w-1.5 h-1.5 bg-brand rounded-full"></div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex justify-between text-[10px] font-black text-slate-400 tabular-nums tracking-wider">
-              <span className="text-brand font-bold">{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
+            <div className="flex-1 min-w-0 text-right relative">
+              <h4 className="font-black text-lg md:text-2xl text-slate-800 leading-tight truncate">
+                {episode.weekday} <span className="text-brand/30 font-light mx-0.5">|</span> {episode.date}
+              </h4>
+              {playbackRate !== 1 && (
+                <div className="absolute top-full right-0 mt-0.5" dir="rtl">
+                  <span className="text-[9px] font-black text-brand bg-brandLight/50 px-1.5 py-0.5 rounded-md border border-brand/20 leading-none inline-block">
+                    מהירות x{playbackRate}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-8 md:gap-12">
-            <button onClick={() => skip(-30)} className="flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
-              <SkipBackIcon className="w-8 h-8" /><span className="text-[9px] font-black mt-1">30s</span>
-            </button>
-            <button onClick={togglePlay} className="w-16 h-16 md:w-20 md:h-20 bg-brand text-white rounded-full flex items-center justify-center shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">
-              {isLoading ? <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div> : isPlaying ? <PauseIconLarge className="w-8 h-8" /> : <PlayIconLarge className="w-8 h-8" />}
-            </button>
-            <button onClick={() => skip(30)} className="flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
-              <SkipForwardIcon className="w-8 h-8" /><span className="text-[9px] font-black mt-1">30s</span>
+          {sharedDescription ? (
+            <div className="mb-4" dir="rtl">
+              <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl">
+                <span className="text-[10px] font-black text-brand uppercase tracking-widest block mb-1">קטע משותף:</span>
+                <p className="text-slate-800 text-sm md:text-base leading-relaxed font-black italic">"{sharedDescription}"</p>
+              </div>
+            </div>
+          ) : summary?.status === 'approved' && (
+            <div className="mb-2" dir="rtl">
+              <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium">{summary.text}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <div className="relative h-4 flex items-center group">
+                <div className="absolute w-full h-1.5 bg-slate-100 rounded-full"></div>
+                <div className="absolute h-1.5 bg-brand rounded-full pointer-events-none z-10" style={{ width: `${progressPct}%` }} />
+                <input type="range" min={0} max={duration || 100} step="1" value={currentTime}
+                  onChange={onSeekChange} onMouseDown={onSeekStart} onMouseUp={onSeekEnd} onTouchStart={onSeekStart} onTouchEnd={onSeekEnd}
+                  className="absolute w-full h-4 bg-transparent appearance-none cursor-pointer outline-none z-20 
+                             [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 
+                             [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand [&::-webkit-slider-thumb]:border-4 
+                             [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg"
+                />
+              </div>
+              <div className="flex justify-between text-[10px] font-black text-slate-400 tabular-nums tracking-wider">
+                <span className="text-brand font-bold">{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-8 md:gap-12">
+              <button onClick={() => skip(-30)} className="flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+                <SkipBackIcon className="w-8 h-8" /><span className="text-[9px] font-black mt-1">30s</span>
+              </button>
+              <button onClick={togglePlay} className="w-16 h-16 md:w-20 md:h-20 bg-brand text-white rounded-full flex items-center justify-center shadow-xl shadow-brand/20 md:hover:scale-105 active:scale-95 transition-all">
+                {isLoading ? <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div> : isPlaying ? <PauseIconLarge className="w-8 h-8" /> : <PlayIconLarge className="w-8 h-8" />}
+              </button>
+              <button onClick={() => skip(30)} className="flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+                <SkipForwardIcon className="w-8 h-8" /><span className="text-[9px] font-black mt-1">30s</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 px-1" dir="rtl">
+            <button 
+              onClick={openShareModal}
+              className="shimmer-light w-full border border-brandDark/40 text-brandDark px-6 py-2.5 rounded-xl font-medium text-sm md:text-base flex items-center justify-center gap-3 md:hover:bg-[#D5EFEF] active:scale-[0.98] transition-all overflow-hidden relative"
+            >
+              <ShareIcon className="w-5 h-5" />
+              <span className="tracking-tight">מישהו חייב לשמוע את זה!</span>
             </button>
           </div>
         </div>
 
-        <div className="mt-6 px-1" dir="rtl">
-          <button 
-            onClick={openShareModal}
-            className="shimmer-light w-full border border-brandDark/40 text-brandDark px-6 py-2.5 rounded-xl font-medium text-sm md:text-base flex items-center justify-center gap-3 hover:bg-[#D5EFEF] hover:border-brandDark/60 active:scale-[0.98] transition-all group overflow-hidden relative"
-          >
-            <ShareIcon className="w-5 h-5" />
-            <span className="tracking-tight">מישהו חייב לשמוע את זה!</span>
-          </button>
-        </div>
+        <audio 
+          ref={audioRef} 
+          src={episode.url} 
+          onTimeUpdate={handleTimeUpdate} 
+          onLoadedMetadata={handleLoadedMetadata} 
+          onCanPlay={handleCanPlay}
+          onError={handleAudioError}
+          onEnded={onComplete} 
+          onPlay={() => setIsPlaying(true)} 
+          onPause={() => setIsPlaying(false)} 
+        />
       </div>
 
       {showShareModal && (
         <div 
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-[250ms]"
           onClick={() => setShowShareModal(false)}
         >
           <div 
             dir="rtl" 
-            className="bg-white w-full max-w-sm rounded-[2.5rem] p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col overflow-hidden"
+            className="bg-white w-full max-w-sm rounded-[2.5rem] p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-[250ms] border border-slate-100 flex flex-col overflow-hidden transition-[height] ease-in-out"
             onClick={(e) => e.stopPropagation()}
           >
-            
             <div className="flex items-center gap-5 text-right py-1">
-              <div className="w-16 h-16 bg-brandLight text-brandDark rounded-[1.25rem] flex items-center justify-center flex-shrink-0 border border-brand/20 shadow-sm">
-                <ShareIcon className="w-8 h-8" />
+              <div className="w-16 h-16 bg-brandLight text-brandDark rounded-[1.25rem] flex items-center justify-center flex-shrink-0 border border-brand/20 shadow-sm overflow-hidden">
+                <EqualizerIcon />
               </div>
               <div className="flex-1 space-y-[6px]">
                 <h3 className="text-xl font-black text-slate-800 leading-tight">שיתוף של הרגע הזה</h3>
                 <p className="text-slate-500 text-xs font-medium">הקישור יתחיל מדקה <span className="text-brand font-black tabular-nums">{formatTime(shareTimestamp)}</span></p>
               </div>
             </div>
-
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pr-1">תיאור הקטע (אופציונלי)</label>
-              <input 
-                type="text" 
-                maxLength={50}
-                placeholder="מה קורה בחלק הזה?"
-                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-1 focus:ring-brand/30 font-bold text-slate-700 placeholder:text-slate-300 transition-all text-sm"
-                value={shareClipDescription}
-                onChange={(e) => setShareClipDescription(e.target.value)}
-              />
+              <input type="text" maxLength={50} placeholder="מה קורה בחלק הזה?" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-1 focus:ring-brand/30 font-bold text-slate-700 placeholder:text-slate-300 transition-all text-sm" value={shareClipDescription} onChange={(e) => setShareClipDescription(e.target.value)} />
             </div>
-
             <div className="grid grid-cols-4 gap-3 pt-1">
               <button onClick={() => handleShareAction('wa')} className="flex flex-col items-center gap-1.5 group">
-                <div className="w-12 h-12 bg-[#25D366] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#25D366]/10 group-hover:scale-110 transition-transform">
-                  <WhatsAppIcon className="w-6 h-6" />
-                </div>
+                <div className="w-12 h-12 bg-[#25D366] text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><WhatsAppIcon className="w-6 h-6" /></div>
                 <span className="text-[10px] font-medium text-slate-600">WhatsApp</span>
               </button>
               <button onClick={() => handleShareAction('fb')} className="flex flex-col items-center gap-1.5 group">
-                <div className="w-12 h-12 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#1877F2]/10 group-hover:scale-110 transition-transform">
-                  <FacebookIcon className="w-6 h-6" />
-                </div>
+                <div className="w-12 h-12 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><FacebookIcon className="w-6 h-6" /></div>
                 <span className="text-[10px] font-medium text-slate-600">Facebook</span>
               </button>
               <button onClick={() => handleShareAction('ig')} className="flex flex-col items-center gap-1.5 group">
-                <div className="w-12 h-12 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#ee2a7b]/10 group-hover:scale-110 transition-transform">
-                  <InstagramIcon className="w-6 h-6" />
-                </div>
+                <div className="w-12 h-12 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><InstagramIcon className="w-6 h-6" /></div>
                 <span className="text-[10px] font-medium text-slate-600">Instagram</span>
               </button>
               <button onClick={() => handleShareAction('copy')} className="flex flex-col items-center gap-1.5 group">
-                <div className="w-12 h-12 bg-slate-800 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-800/10 group-hover:scale-110 transition-transform">
-                  <CopyIcon className="w-6 h-6" />
-                </div>
+                <div className="w-12 h-12 bg-slate-800 text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform"><CopyIcon className="w-6 h-6" /></div>
                 <span className="text-[10px] font-medium text-slate-600">העתק קישור</span>
               </button>
             </div>
-
-            <div className="my-1 flex items-center justify-center overflow-hidden">
-              {copyStatus && (
-                <div className="w-full text-center bg-[#E4F6F6] text-brandDark py-1.5 rounded-xl text-[11px] font-black animate-in fade-in slide-in-from-bottom-1 duration-300">
+            {copyStatus && (
+              <div className="pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="w-full text-center bg-[#E4F6F6] text-brandDark py-1.5 rounded-xl text-[11px] font-black">
                   {copyStatus}
                 </div>
-              )}
-            </div>
-
-            <button 
-              onClick={() => setShowShareModal(false)}
-              className="w-full py-2 text-slate-600 font-bold text-sm hover:text-brand transition-colors border-t border-slate-50 pt-3"
-            >
-              סגור
-            </button>
+              </div>
+            )}
+            <button onClick={() => setShowShareModal(false)} className="w-full py-2 text-slate-600 font-bold text-sm hover:text-brand transition-colors border-t border-slate-50 pt-3">סגור</button>
           </div>
         </div>
       )}
-
-      <audio 
-        ref={audioRef} 
-        src={episode.url} 
-        onTimeUpdate={handleTimeUpdate} 
-        onLoadedMetadata={handleLoadedMetadata} 
-        onCanPlay={handleCanPlay}
-        onError={handleAudioError}
-        onEnded={onComplete} 
-        onPlay={() => setIsPlaying(true)} 
-        onPause={() => setIsPlaying(false)} 
-      />
-    </div>
+    </>
   );
 };
+
+const EqualizerIcon = () => (
+  <div className="flex items-end gap-[3px] h-6 w-8">
+    <div className="w-1.5 bg-brand eq-bar eq-bar-1 rounded-full"></div>
+    <div className="w-1.5 bg-brand eq-bar eq-bar-2 rounded-full"></div>
+    <div className="w-1.5 bg-brand eq-bar eq-bar-3 rounded-full"></div>
+    <div className="w-1.5 bg-brand eq-bar eq-bar-4 rounded-full"></div>
+  </div>
+);
 
 const CloseIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -402,7 +424,10 @@ const ErrorIcon = ({className}: {className?: string}) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
 );
 const SettingsIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 00 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
 );
 const ShareIcon = ({className}: {className?: string}) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
@@ -416,8 +441,8 @@ const FacebookIcon = ({className}: {className?: string}) => (
 const InstagramIcon = ({className}: {className?: string}) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.058-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
 );
-const CopyIcon = ({className}: {className?: string}) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+const CopyIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
 );
 const PlayIconLarge = ({className}: {className?: string}) => (
   <svg className={`fill-current ${className || "w-10 h-10 translate-x-1"}`} viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
