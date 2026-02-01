@@ -20,6 +20,14 @@ export interface Summary {
   createdAt: number;
 }
 
+export interface SharedClip {
+  id: string;
+  episodeId: string;
+  timestamp: number;
+  description: string;
+  createdAt: number;
+}
+
 export interface PlaybackState {
   lastPlayedId: string | null;
   progress: Record<string, number>; // id -> seconds

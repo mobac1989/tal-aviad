@@ -6,6 +6,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>טל ואביעד - הארכיון</title>
+    
+    <!-- Open Graph Meta Tags for Social Sharing -->
+    <meta property="og:title" content="טל ואביעד - הארכיון">
+    <meta property="og:description" content="מישהו חייב לשמוע את הקטע הזה! הצטרפו להאזנה לארכיון תכנית הבוקר של טל ואביעד.">
+    <meta property="og:image" content="https://lh3.googleusercontent.com/d/1q-biyLBEkqFf7eUgrh0lAUWcsoW-tyNw">
+    <meta property="og:url" content="https://tal-aviad.netlify.app/">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -14,7 +23,7 @@
             colors: {
               brand: '#4F9B9B',
               brandDark: '#3a7272',
-              brandLight: '#eef6f6',
+              brandLight: '#E4F6F6',
               heroBg: '#1e3a3a',
             },
             borderRadius: {
@@ -24,7 +33,6 @@
         }
       }
     </script>
-    <!-- Heebo is the closest open-source equivalent to Google Sans for Hebrew -->
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -43,7 +51,16 @@
         }
         .hero-gradient {
             background: linear-gradient(135deg, #112222 0%, #1a3232 100%);
-            /* Shadow removed as requested */
+        }
+
+        @keyframes shimmerLight {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .shimmer-light {
+          background: linear-gradient(90deg, #E4F6F6 0%, #f4ffff 50%, #E4F6F6 100%);
+          background-size: 200% 100%;
+          animation: shimmerLight 5s infinite linear;
         }
     </style>
 <script type="importmap">
