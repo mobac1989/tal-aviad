@@ -204,12 +204,19 @@ const App: React.FC = () => {
 
   const filteredData = useMemo(() => {
     if (!searchQuery) return currentYearData;
+    const q = searchQuery.toLowerCase();
     const results = episodes.filter(ep => 
-      ep.date.includes(searchQuery) || ep.display.includes(searchQuery) || ep.notes.includes(searchQuery) ||
-      (summaries[ep.id]?.status === 'approved' && summaries[ep.id]?.text.includes(searchQuery))
+      ep.date.includes(q) || 
+      ep.display.toLowerCase().includes(q) || 
+      ep.notes.toLowerCase().includes(q) ||
+      (summaries[ep.id]?.status === 'approved' && summaries[ep.id]?.text.toLowerCase().includes(q))
     );
     if (results.length === 0) return null;
-    return { year: 0, months: [{ month: 0, monthName: "תוצאות חיפוש", episodes: results }] };
+    
+    // Sort results by date descending
+    const sortedResults = results.sort((a, b) => new Date(b.dateISO).getTime() - new Date(a.dateISO).getTime());
+    
+    return { year: 0, months: [{ month: 0, monthName: "תוצאות חיפוש", episodes: sortedResults }] };
   }, [currentYearData, searchQuery, episodes, summaries]);
 
   const handleAddSummary = (epId: string, text: string) => {
@@ -254,7 +261,7 @@ const App: React.FC = () => {
           <>
             {!searchQuery && featuredEpisode && (
               <div className="overflow-hidden rounded-4xl hero-gradient py-10 px-4 md:py-14 md:px-12 text-white flex items-center gap-1 md:gap-8 mb-4 border border-white/5">
-                <button onClick={() => navigateFeatured('prev')} className="flex-shrink-0 w-10 h-10 md:w-14 md:h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all z-10 hover:scale-110 active:scale-95">
+                <button onClick={() => navigateFeatured('prev')} className="flex-shrink-0 w-10 h-10 md:w-14 md:h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all z-10 md:hover:scale-110 md:active:scale-95">
                   <ChevronRightIcon className="w-6 h-6 md:w-8 md:h-8" />
                 </button>
                 <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-14 overflow-hidden">
@@ -275,7 +282,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <button onClick={() => navigateFeatured('next')} className="flex-shrink-0 w-10 h-10 md:w-14 md:h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all z-10 hover:scale-110 active:scale-95">
+                <button onClick={() => navigateFeatured('next')} className="flex-shrink-0 w-10 h-10 md:w-14 md:h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all z-10 md:hover:scale-110 md:active:scale-95">
                   <ChevronLeftIcon className="w-6 h-6 md:w-8 md:h-8" />
                 </button>
               </div>
@@ -329,6 +336,9 @@ const App: React.FC = () => {
                   </div>
                 );
               })}
+              {searchQuery && !filteredData && (
+                <div className="py-20 text-center text-slate-300 font-bold">לא נמצאו תוכניות התואמות לחיפוש</div>
+              )}
             </div>
           </>
         )}

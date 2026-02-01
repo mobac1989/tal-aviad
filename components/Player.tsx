@@ -34,6 +34,7 @@ const Player: React.FC<PlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareClipDescription, setShareClipDescription] = useState("");
@@ -44,6 +45,7 @@ const Player: React.FC<PlayerProps> = ({
     hasSeekedInitialRef.current = false;
     setIsLoading(true);
     setAutoplayBlocked(false);
+    setAudioError(null);
     setShowShareModal(false);
     setShowSettings(false);
     setShareClipDescription("");
@@ -64,6 +66,7 @@ const Player: React.FC<PlayerProps> = ({
       audioRef.current.currentTime = initialTime;
       hasSeekedInitialRef.current = true;
       setIsLoading(false);
+      setAudioError(null);
       
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
@@ -75,8 +78,14 @@ const Player: React.FC<PlayerProps> = ({
     }
   };
 
+  const handleAudioError = () => {
+    setIsLoading(false);
+    setAudioError("מצטערים, לא ניתן להפעיל את התוכנית הזו כרגע (הקישור עשוי להיות שבור).");
+    setIsPlaying(false);
+  };
+
   const togglePlay = () => {
-    if (audioRef.current) {
+    if (audioRef.current && !audioError) {
       if (isPlaying) {
         audioRef.current.pause();
       } else {
@@ -90,7 +99,6 @@ const Player: React.FC<PlayerProps> = ({
     if (audioRef.current) {
       const newTime = audioRef.current.currentTime + seconds;
       audioRef.current.currentTime = Math.max(0, Math.min(newTime, duration));
-      // Force UI update immediately for feedback
       setCurrentTime(audioRef.current.currentTime);
     }
   };
@@ -177,7 +185,7 @@ const Player: React.FC<PlayerProps> = ({
   return (
     <div dir="ltr" className="fixed bottom-0 left-0 right-0 z-[150] bg-white text-slate-900 border-t border-slate-100 shadow-[0_-15px_40px_rgba(0,0,0,0.12)] rounded-t-[2.5rem] animate-in slide-in-from-bottom duration-500 ease-out overflow-visible">
       {/* Autoplay blocked overlay */}
-      {autoplayBlocked && (
+      {autoplayBlocked && !audioError && (
         <div className="absolute inset-0 z-[170] bg-white/80 backdrop-blur-md rounded-t-[2.5rem] flex items-center justify-center animate-in fade-in duration-300">
           <button 
             onClick={togglePlay}
@@ -188,6 +196,19 @@ const Player: React.FC<PlayerProps> = ({
             </div>
             <span className="text-brand font-black text-lg" dir="rtl">לחצו להאזנה לקטע המשותף</span>
           </button>
+        </div>
+      )}
+
+      {/* Audio error overlay */}
+      {audioError && (
+        <div className="absolute inset-0 z-[175] bg-white rounded-t-[2.5rem] flex items-center justify-center p-8 animate-in fade-in duration-300 text-center">
+          <div className="space-y-4 max-w-xs">
+            <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+              <ErrorIcon className="w-8 h-8" />
+            </div>
+            <p className="text-slate-800 font-bold" dir="rtl">{audioError}</p>
+            <button onClick={onClose} className="text-brand font-black text-sm uppercase tracking-widest">סגור נגן</button>
+          </div>
         </div>
       )}
 
@@ -365,6 +386,7 @@ const Player: React.FC<PlayerProps> = ({
         onTimeUpdate={handleTimeUpdate} 
         onLoadedMetadata={handleLoadedMetadata} 
         onCanPlay={handleCanPlay}
+        onError={handleAudioError}
         onEnded={onComplete} 
         onPlay={() => setIsPlaying(true)} 
         onPause={() => setIsPlaying(false)} 
@@ -375,6 +397,9 @@ const Player: React.FC<PlayerProps> = ({
 
 const CloseIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+);
+const ErrorIcon = ({className}: {className?: string}) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
 );
 const SettingsIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 00 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>

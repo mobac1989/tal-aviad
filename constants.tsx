@@ -1,4 +1,3 @@
-
 import { Episode } from './types';
 
 export const MONTH_NAMES = [
@@ -7,17 +6,18 @@ export const MONTH_NAMES = [
 ];
 
 export const parseCSV = (csvText: string): Episode[] => {
-  const lines = csvText.trim().split('\n');
+  // Use regex to split lines to handle both \n and \r\n
+  const lines = csvText.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
 
-  // Skip header
   return lines.slice(1).map((line, index) => {
-    // Simple CSV split (assuming no commas in notes/urls or they are quoted)
-    // For more complex CSVs, a library like PapaParse is better, but this is lightweight
-    const columns = line.split(',');
+    // Basic CSV split, but trim each value to remove potential \r or extra spaces
+    const columns = line.split(',').map(col => col.trim());
     
+    if (columns.length < 8) return null;
+
     return {
-      id: columns[1] || `ep-${index}`, // Use ISO Date as ID
+      id: columns[1] || `ep-${index}`,
       date: columns[0],
       dateISO: columns[1],
       weekday: columns[2],
@@ -29,5 +29,5 @@ export const parseCSV = (csvText: string): Episode[] => {
       notes: columns[8] || "",
       display: columns[9] || columns[0]
     };
-  }).filter(ep => ep.url); // Ensure we have a URL
+  }).filter((ep): ep is Episode => ep !== null && !!ep.url);
 };
