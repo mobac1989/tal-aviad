@@ -61,9 +61,11 @@
           100% { background-position: 200% 0; }
         }
         .shimmer-light {
-          background: linear-gradient(90deg, #E4F6F6 0%, #f4ffff 50%, #E4F6F6 100%);
+          /* Softer transition: Color difference is reduced (#E4F6F6 to #F2FBFB instead of pure white) */
+          background: linear-gradient(115deg, #E4F6F6 20%, #F2FBFB 50%, #E4F6F6 80%);
           background-size: 200% 100%;
           animation: shimmerLight 5s infinite linear;
+          background-color: #E4F6F6;
         }
     </style>
 <script type="importmap">
