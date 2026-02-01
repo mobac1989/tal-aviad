@@ -1,8 +1,5 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Episode, Summary, SharedClip } from '../types';
-
-const PROFILE_IMAGE = "https://lh3.googleusercontent.com/d/1q-biyLBEkqFf7eUgrh0lAUWcsoW-tyNw";
 
 interface PlayerProps {
   episode: Episode;
@@ -36,6 +33,7 @@ const Player: React.FC<PlayerProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareClipDescription, setShareClipDescription] = useState("");
@@ -45,18 +43,15 @@ const Player: React.FC<PlayerProps> = ({
   useEffect(() => {
     hasSeekedInitialRef.current = false;
     setIsLoading(true);
+    setAutoplayBlocked(false);
     setShowShareModal(false);
     setShowSettings(false);
     setShareClipDescription("");
-  }, [episode.id]);
-
-  useEffect(() => {
-    if (audioRef.current && !isLoading && !hasSeekedInitialRef.current) {
-      audioRef.current.currentTime = initialTime;
-      hasSeekedInitialRef.current = true;
-      audioRef.current.play().catch(() => setIsPlaying(false));
+    
+    if (audioRef.current) {
+      audioRef.current.load();
     }
-  }, [isLoading, initialTime]);
+  }, [episode.id]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -64,16 +59,39 @@ const Player: React.FC<PlayerProps> = ({
     }
   }, [playbackRate]);
 
+  const handleCanPlay = () => {
+    if (audioRef.current && !hasSeekedInitialRef.current) {
+      audioRef.current.currentTime = initialTime;
+      hasSeekedInitialRef.current = true;
+      setIsLoading(false);
+      
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.log("Autoplay was prevented:", error);
+          setAutoplayBlocked(true);
+        });
+      }
+    }
+  };
+
   const togglePlay = () => {
     if (audioRef.current) {
-      if (isPlaying) audioRef.current.pause();
-      else audioRef.current.play();
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        setAutoplayBlocked(false);
+        audioRef.current.play();
+      }
     }
   };
 
   const skip = (seconds: number) => {
     if (audioRef.current) {
-      audioRef.current.currentTime += seconds;
+      const newTime = audioRef.current.currentTime + seconds;
+      audioRef.current.currentTime = Math.max(0, Math.min(newTime, duration));
+      // Force UI update immediately for feedback
+      setCurrentTime(audioRef.current.currentTime);
     }
   };
 
@@ -90,7 +108,6 @@ const Player: React.FC<PlayerProps> = ({
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
-      setIsLoading(false);
     }
   };
 
@@ -102,7 +119,9 @@ const Player: React.FC<PlayerProps> = ({
   const onSeekStart = () => setIsDragging(true);
   const onSeekEnd = () => {
     setIsDragging(false);
-    if (audioRef.current) audioRef.current.currentTime = currentTime;
+    if (audioRef.current) {
+      audioRef.current.currentTime = currentTime;
+    }
   };
 
   const formatTime = (time: number) => {
@@ -119,7 +138,7 @@ const Player: React.FC<PlayerProps> = ({
   };
 
   const generateShareUrl = () => {
-    const baseUrl = "https://tal-aviad.netlify.app/";
+    const baseUrl = window.location.origin + window.location.pathname;
     const params = new URLSearchParams();
     params.set('ep', episode.id);
     params.set('t', Math.floor(shareTimestamp).toString());
@@ -157,6 +176,21 @@ const Player: React.FC<PlayerProps> = ({
 
   return (
     <div dir="ltr" className="fixed bottom-0 left-0 right-0 z-[150] bg-white text-slate-900 border-t border-slate-100 shadow-[0_-15px_40px_rgba(0,0,0,0.12)] rounded-t-[2.5rem] animate-in slide-in-from-bottom duration-500 ease-out overflow-visible">
+      {/* Autoplay blocked overlay */}
+      {autoplayBlocked && (
+        <div className="absolute inset-0 z-[170] bg-white/80 backdrop-blur-md rounded-t-[2.5rem] flex items-center justify-center animate-in fade-in duration-300">
+          <button 
+            onClick={togglePlay}
+            className="flex flex-col items-center gap-4 group"
+          >
+            <div className="w-24 h-24 bg-brand text-white rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform active:scale-95">
+              <PlayIconLarge className="w-10 h-10 translate-x-1" />
+            </div>
+            <span className="text-brand font-black text-lg" dir="rtl">לחצו להאזנה לקטע המשותף</span>
+          </button>
+        </div>
+      )}
+
       <div className="max-w-xl mx-auto px-6 py-6 md:py-8">
         
         <div className="flex items-center justify-between gap-4 mb-6">
@@ -189,7 +223,14 @@ const Player: React.FC<PlayerProps> = ({
           </div>
         </div>
 
-        {!sharedDescription && summary?.status === 'approved' && (
+        {sharedDescription ? (
+          <div className="mb-4" dir="rtl">
+            <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl">
+              <span className="text-[10px] font-black text-brand uppercase tracking-widest block mb-1">קטע משותף:</span>
+              <p className="text-slate-800 text-sm md:text-base leading-relaxed font-black italic">"{sharedDescription}"</p>
+            </div>
+          </div>
+        ) : summary?.status === 'approved' && (
           <div className="mb-2" dir="rtl">
             <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
               <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium">{summary.text}</p>
@@ -318,8 +359,16 @@ const Player: React.FC<PlayerProps> = ({
         </div>
       )}
 
-      <audio ref={audioRef} src={episode.url} onTimeUpdate={handleTimeUpdate} onLoadedMetadata={handleLoadedMetadata} 
-             onEnded={onComplete} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+      <audio 
+        ref={audioRef} 
+        src={episode.url} 
+        onTimeUpdate={handleTimeUpdate} 
+        onLoadedMetadata={handleLoadedMetadata} 
+        onCanPlay={handleCanPlay}
+        onEnded={onComplete} 
+        onPlay={() => setIsPlaying(true)} 
+        onPause={() => setIsPlaying(false)} 
+      />
     </div>
   );
 };
@@ -333,9 +382,6 @@ const SettingsIcon = () => (
 const ShareIcon = ({className}: {className?: string}) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
 );
-const ShareIconSmall = ({className}: {className?: string}) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-  );
 const WhatsAppIcon = ({className}: {className?: string}) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.414 0 .004 5.411.002 12.046c0 2.121.54 4.193 1.566 6.06L0 24l6.102-1.6a11.803 11.803 0 005.948 1.587h.005c6.634 0 12.043-5.411 12.046-12.047a11.85 11.85 0 00-3.483-8.43z"/></svg>
 );
