@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Episode, PlaybackState, YearGroup, MonthGroup, Summary, SharedClip } from './types';
 import { parseCSV } from './constants';
@@ -269,7 +268,7 @@ const App: React.FC = () => {
                     <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-[1] tracking-tighter mb-2">{featuredEpisode.weekday}</h2>
                     <h2 className="text-xl md:text-2xl text-white/60 font-black tabular-nums">{featuredEpisode.date}</h2>
                     <div className="pt-8 md:pt-6">
-                      <button onClick={() => handlePlay(featuredEpisode)} className={`${isFeaturedPlaying ? 'bg-teal-100 text-brandDark' : 'bg-white text-brand'} px-10 md:px-12 py-3 md:py-4 rounded-2xl font-black text-lg md:text-xl flex items-center gap-4 mx-auto md:mr-0 md:ml-auto hover:scale-105 active:scale-95 transition-all`}>
+                      <button onClick={() => handlePlay(featuredEpisode)} className={`${isFeaturedPlaying ? 'bg-teal-100 text-brandDark' : 'bg-white text-brand'} px-10 md:px-12 py-3 md:py-4 rounded-2xl font-black text-lg md:text-xl flex items-center gap-4 mx-auto md:mr-0 md:ml-auto md:hover:scale-105 md:active:scale-95 transition-all`}>
                         <PlayIconSmall className="w-6 h-6 fill-current" />
                         <span>{isFeaturedPlaying ? 'מתנגן עכשיו...' : 'נגן עכשיו'}</span>
                       </button>
