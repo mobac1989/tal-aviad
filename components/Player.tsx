@@ -325,12 +325,12 @@ const Player: React.FC<PlayerProps> = ({
                 <SkipBackIcon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">30s</span>
               </button>
               
-              {/* Play/Pause Button with Animated Ring - Adjusted to have a 4px gap (inset-[-4px]) */}
+              {/* Play/Pause Button with Animated Ring - Adjusted to have a 5px gap (inset-[-5px]) */}
               <div className="relative flex-shrink-0">
                 {isPlaying && !isLoading && (
                   <>
-                    <div className="absolute inset-[-4px] border-2 border-brand/30 border-dashed rounded-full animate-rotate-slow pointer-events-none z-0" />
-                    <div className="absolute inset-[-4px] bg-brand/20 rounded-full animate-soft-pulse pointer-events-none z-0" />
+                    <div className="absolute inset-[-5px] border-2 border-brand/30 border-dashed rounded-full animate-rotate-slow pointer-events-none z-0" />
+                    <div className="absolute inset-[-5px] bg-brand/20 rounded-full animate-soft-pulse pointer-events-none z-0" />
                   </>
                 )}
                 <button 
