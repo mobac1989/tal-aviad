@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Episode, Summary, SharedClip } from '../types';
 
@@ -305,7 +306,7 @@ const Player: React.FC<PlayerProps> = ({
                   onChange={onSeekChange} onMouseDown={onSeekStart} onMouseUp={onSeekEnd} onTouchStart={onSeekStart} onTouchEnd={onSeekEnd}
                   className="absolute w-full h-4 bg-transparent appearance-none cursor-pointer outline-none z-20 
                              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 
-                             [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand [&::-webkit-slider-thumb]:border-4 
+                             [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand [&::-webkit-slider-thumb]:border-[1px] 
                              [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg"
                 />
               </div>
@@ -317,19 +318,39 @@ const Player: React.FC<PlayerProps> = ({
 
             {/* Gap logic: Default is gap-8, grows to 10 on modern large phones, shrinks to 4 only if screen < 360px */}
             <div className="flex items-center justify-center gap-8 min-[400px]:gap-10 max-[360px]:gap-4 md:gap-16">
-              <button onClick={() => skip(-10)} className="flex-shrink-0 flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+              <button onClick={() => skip(-10)} className="flex-shrink-0 flex flex-col items-center text-slate-300 md:hover:text-brand active:text-brand transition-all active:scale-90">
                 <SkipBack10Icon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">10s</span>
               </button>
-              <button onClick={() => skip(-30)} className="flex-shrink-0 flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+              <button onClick={() => skip(-30)} className="flex-shrink-0 flex flex-col items-center text-slate-300 md:hover:text-brand active:text-brand transition-all active:scale-90">
                 <SkipBackIcon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">30s</span>
               </button>
-              <button onClick={togglePlay} className="flex-shrink-0 w-16 h-16 md:w-22 md:h-22 bg-brand text-white rounded-full flex items-center justify-center shadow-xl shadow-brand/20 md:hover:scale-105 active:scale-95 transition-all">
-                {isLoading ? <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div> : isPlaying ? <PauseIconLarge className="w-8 h-8 md:w-10 md:h-10" /> : <PlayIconLarge className="w-8 h-8 md:w-10 md:h-10" />}
-              </button>
-              <button onClick={() => skip(30)} className="flex-shrink-0 flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+              
+              {/* Play/Pause Button with Animated Ring - Adjusted to have a 4px gap (inset-[-4px]) */}
+              <div className="relative flex-shrink-0">
+                {isPlaying && !isLoading && (
+                  <>
+                    <div className="absolute inset-[-4px] border-2 border-brand/30 border-dashed rounded-full animate-rotate-slow pointer-events-none z-0" />
+                    <div className="absolute inset-[-4px] bg-brand/20 rounded-full animate-soft-pulse pointer-events-none z-0" />
+                  </>
+                )}
+                <button 
+                  onClick={togglePlay} 
+                  className={`relative z-10 w-16 h-16 md:w-22 md:h-22 bg-brand text-white rounded-full flex items-center justify-center shadow-xl shadow-brand/20 md:hover:scale-105 active:scale-95 transition-all`}
+                >
+                  {isLoading ? (
+                    <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  ) : isPlaying ? (
+                    <PauseIconLarge className="w-8 h-8 md:w-10 md:h-10" />
+                  ) : (
+                    <PlayIconLarge className="w-8 h-8 md:w-10 md:h-10" />
+                  )}
+                </button>
+              </div>
+
+              <button onClick={() => skip(30)} className="flex-shrink-0 flex flex-col items-center text-slate-300 md:hover:text-brand active:text-brand transition-all active:scale-90">
                 <SkipForwardIcon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">30s</span>
               </button>
-              <button onClick={() => skip(10)} className="flex-shrink-0 flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+              <button onClick={() => skip(10)} className="flex-shrink-0 flex flex-col items-center text-slate-300 md:hover:text-brand active:text-brand transition-all active:scale-90">
                 <SkipForward10Icon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">10s</span>
               </button>
             </div>
