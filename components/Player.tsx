@@ -285,7 +285,7 @@ const Player: React.FC<PlayerProps> = ({
             <div className="mb-4" dir="rtl">
               <div className="bg-brand/5 border border-brand/10 p-4 rounded-2xl">
                 <span className="text-[10px] font-black text-brand uppercase tracking-widest block mb-1">קטע משותף:</span>
-                <p className="text-slate-800 text-sm md:text-base leading-relaxed font-black italic">"{sharedDescription}"</p>
+                <p className="text-slate-800 text-sm md:text-base leading-relaxed font-black">"{sharedDescription}"</p>
               </div>
             </div>
           ) : summary?.status === 'approved' && (
@@ -315,23 +315,30 @@ const Player: React.FC<PlayerProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-8 md:gap-12">
-              <button onClick={() => skip(-30)} className="flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
-                <SkipBackIcon className="w-8 h-8" /><span className="text-[9px] font-black mt-1">30s</span>
+            {/* Gap logic: Default is gap-8, grows to 10 on modern large phones, shrinks to 4 only if screen < 360px */}
+            <div className="flex items-center justify-center gap-8 min-[400px]:gap-10 max-[360px]:gap-4 md:gap-16">
+              <button onClick={() => skip(-10)} className="flex-shrink-0 flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+                <SkipBack10Icon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">10s</span>
               </button>
-              <button onClick={togglePlay} className="w-16 h-16 md:w-20 md:h-20 bg-brand text-white rounded-full flex items-center justify-center shadow-xl shadow-brand/20 md:hover:scale-105 active:scale-95 transition-all">
-                {isLoading ? <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div> : isPlaying ? <PauseIconLarge className="w-8 h-8" /> : <PlayIconLarge className="w-8 h-8" />}
+              <button onClick={() => skip(-30)} className="flex-shrink-0 flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+                <SkipBackIcon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">30s</span>
               </button>
-              <button onClick={() => skip(30)} className="flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
-                <SkipForwardIcon className="w-8 h-8" /><span className="text-[9px] font-black mt-1">30s</span>
+              <button onClick={togglePlay} className="flex-shrink-0 w-16 h-16 md:w-22 md:h-22 bg-brand text-white rounded-full flex items-center justify-center shadow-xl shadow-brand/20 md:hover:scale-105 active:scale-95 transition-all">
+                {isLoading ? <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div> : isPlaying ? <PauseIconLarge className="w-8 h-8 md:w-10 md:h-10" /> : <PlayIconLarge className="w-8 h-8 md:w-10 md:h-10" />}
+              </button>
+              <button onClick={() => skip(30)} className="flex-shrink-0 flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+                <SkipForwardIcon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">30s</span>
+              </button>
+              <button onClick={() => skip(10)} className="flex-shrink-0 flex flex-col items-center text-slate-300 hover:text-brand transition-all active:scale-90">
+                <SkipForward10Icon className="w-8 h-8 md:w-9 md:h-9" /><span className="text-[8px] md:text-[9px] font-black mt-1">10s</span>
               </button>
             </div>
           </div>
 
-          <div className="mt-6 px-1" dir="rtl">
+          <div className="mt-8 px-1" dir="rtl">
             <button 
               onClick={openShareModal}
-              className="shimmer-light w-full border border-brandDark/40 text-brandDark px-6 py-2.5 rounded-xl font-medium text-sm md:text-base flex items-center justify-center gap-3 md:hover:bg-[#D5EFEF] active:scale-[0.98] transition-all overflow-hidden relative"
+              className="shimmer-light w-full border border-brandDark/40 text-brandDark px-6 py-3 rounded-xl font-medium text-sm md:text-base flex items-center justify-center gap-3 md:hover:bg-[#D5EFEF] active:scale-[0.98] transition-all overflow-hidden relative"
             >
               <ShareIcon className="w-5 h-5" />
               <span className="tracking-tight">מישהו חייב לשמוע את זה!</span>
@@ -455,6 +462,12 @@ const SkipBackIcon = ({className}: {className?: string}) => (
 );
 const SkipForwardIcon = ({className}: {className?: string}) => (
   <svg className={className || "w-8 h-8"} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M6 5l7 7-7 7" /></svg>
+);
+const SkipBack10Icon = ({className}: {className?: string}) => (
+  <svg className={className || "w-8 h-8"} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 19l-7-7 7-7" /></svg>
+);
+const SkipForward10Icon = ({className}: {className?: string}) => (
+  <svg className={className || "w-8 h-8"} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7" /></svg>
 );
 
 export default Player;
