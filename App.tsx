@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Episode, PlaybackState, YearGroup, MonthGroup, Summary, SharedClip } from './types';
 import { parseCSV } from './constants';
@@ -5,6 +6,7 @@ import Player from './components/Player';
 import AdminDashboard from './components/AdminDashboard';
 
 const PROFILE_IMAGE = "https://lh3.googleusercontent.com/d/1q-biyLBEkqFf7eUgrh0lAUWcsoW-tyNw";
+const DATA_YEARS = [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023];
 
 const App: React.FC = () => {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -31,6 +33,7 @@ const App: React.FC = () => {
   const [initialSeekTime, setInitialSeekTime] = useState<number | null>(null);
   const [playerKey, setPlayerKey] = useState<number>(0);
   const [sharedDescription, setSharedDescription] = useState<string | null>(null);
+  // Default to 2011 as requested
   const [activeYear, setActiveYear] = useState<number>(2011);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
@@ -57,20 +60,29 @@ const App: React.FC = () => {
         if (activeButton) {
           activeButton.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
-      }, 100);
+      }, 150); // Slightly increased delay to ensure data is rendered
       return () => clearTimeout(timer);
     }
   }, [loading, activeYear]);
 
   useEffect(() => {
-    fetch('/episodes.csv')
-      .then(res => {
-        if (!res.ok) throw new Error("לא ניתן היה לטעון את קובץ הנתונים.");
-        return res.text();
-      })
-      .then(text => {
-        const parsed = parseCSV(text);
-        setEpisodes(parsed);
+    const loadAnnualData = async () => {
+      try {
+        const results = await Promise.all(
+          DATA_YEARS.map(year => 
+            fetch(`/${year}.csv`)
+              .then(res => res.ok ? res.text() : "")
+              .catch(() => "")
+          )
+        );
+
+        const allParsed = results.flatMap(text => text ? parseCSV(text) : []);
+        
+        if (allParsed.length === 0) {
+          throw new Error("לא ניתן היה לטעון את קבצי הנתונים.");
+        }
+
+        setEpisodes(allParsed);
         setLoading(false);
         
         const params = new URLSearchParams(window.location.search);
@@ -78,8 +90,8 @@ const App: React.FC = () => {
         const timestamp = params.get('t');
         const desc = params.get('n');
 
-        if (epId && parsed.length > 0) {
-          const ep = parsed.find(e => e.id === epId);
+        if (epId) {
+          const ep = allParsed.find(e => e.id === epId);
           if (ep) {
             handlePlay(ep, timestamp ? parseFloat(timestamp) : undefined);
             if (desc) setSharedDescription(decodeURIComponent(desc));
@@ -89,19 +101,21 @@ const App: React.FC = () => {
           }
         }
 
-        if (parsed.length > 0) {
-          let initialYear = 2011;
+        if (allParsed.length > 0) {
+          let initialYear = 2011; // Default to 2011 as requested
           if (playback.lastPlayedId) {
-            const lastPlayedEpisode = parsed.find(e => e.id === playback.lastPlayedId);
+            const lastPlayedEpisode = allParsed.find(e => e.id === playback.lastPlayedId);
             if (lastPlayedEpisode) initialYear = lastPlayedEpisode.year;
           }
           setActiveYear(initialYear);
         }
-      })
-      .catch(err => {
+      } catch (err: any) {
         setError(err.message);
         setLoading(false);
-      });
+      }
+    };
+
+    loadAnnualData();
   }, []);
 
   useEffect(() => {
@@ -188,6 +202,11 @@ const App: React.FC = () => {
       const last = episodes.find(e => e.id === playback.lastPlayedId);
       if (last) return last;
     }
+    // If nothing played, feature the EARLIEST episode from 2011 as requested
+    const episodes2011 = episodes.filter(e => e.year === 2011);
+    if (episodes2011.length > 0) {
+      return episodes2011.sort((a, b) => new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime())[0];
+    }
     return episodes[0] || null;
   }, [episodes, playback.lastPlayedId]);
 
@@ -244,6 +263,13 @@ const App: React.FC = () => {
     <div className="flex flex-col items-center justify-center min-h-screen bg-brand text-white p-6 text-center">
       <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
       <h2 className="text-xl font-bold">טוען את הארכיון...</h2>
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-rose-50 text-rose-900 p-6 text-center">
+      <h2 className="text-xl font-bold mb-4">{error}</h2>
+      <button onClick={() => window.location.reload()} className="bg-brand text-white px-6 py-2 rounded-full font-bold">נסה שוב</button>
     </div>
   );
 
