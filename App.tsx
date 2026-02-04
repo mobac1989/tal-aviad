@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Episode, PlaybackState, YearGroup, MonthGroup, Summary, SharedClip } from './types';
 import { parseCSV } from './constants';
@@ -35,7 +34,6 @@ const App: React.FC = () => {
   const [sharedDescription, setSharedDescription] = useState<string | null>(null);
   // Default to 2011 as requested
   const [activeYear, setActiveYear] = useState<number>(2011);
-  const [searchQuery, setSearchQuery] = useState("");
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
   const yearScrollRef = useRef<HTMLDivElement>(null);
@@ -60,7 +58,7 @@ const App: React.FC = () => {
         if (activeButton) {
           activeButton.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
-      }, 150); // Slightly increased delay to ensure data is rendered
+      }, 150);
       return () => clearTimeout(timer);
     }
   }, [loading, activeYear]);
@@ -102,7 +100,7 @@ const App: React.FC = () => {
         }
 
         if (allParsed.length > 0) {
-          let initialYear = 2011; // Default to 2011 as requested
+          let initialYear = 2011;
           if (playback.lastPlayedId) {
             const lastPlayedEpisode = allParsed.find(e => e.id === playback.lastPlayedId);
             if (lastPlayedEpisode) initialYear = lastPlayedEpisode.year;
@@ -202,7 +200,6 @@ const App: React.FC = () => {
       const last = episodes.find(e => e.id === playback.lastPlayedId);
       if (last) return last;
     }
-    // If nothing played, feature the EARLIEST episode from 2011 as requested
     const episodes2011 = episodes.filter(e => e.year === 2011);
     if (episodes2011.length > 0) {
       return episodes2011.sort((a, b) => new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime())[0];
@@ -223,22 +220,6 @@ const App: React.FC = () => {
   const currentYearData = useMemo(() => {
     return yearGroups.find(yg => yg.year === activeYear);
   }, [yearGroups, activeYear]);
-
-  const filteredData = useMemo(() => {
-    if (!searchQuery) return currentYearData;
-    const q = searchQuery.toLowerCase();
-    const results = episodes.filter(ep => 
-      ep.date.includes(q) || 
-      ep.display.toLowerCase().includes(q) || 
-      ep.notes.toLowerCase().includes(q) ||
-      (summaries[ep.id]?.status === 'approved' && summaries[ep.id]?.text.toLowerCase().includes(q))
-    );
-    if (results.length === 0) return null;
-    
-    const sortedResults = results.sort((a, b) => new Date(b.dateISO).getTime() - new Date(a.dateISO).getTime());
-    
-    return { year: 0, months: [{ month: 0, monthName: "תוצאות חיפוש", episodes: sortedResults }] };
-  }, [currentYearData, searchQuery, episodes, summaries]);
 
   const handleAddSummary = (epId: string, text: string) => {
     setSummaries(prev => ({ ...prev, [epId]: { episodeId: epId, text, status: 'pending', createdAt: Date.now() } }));
@@ -287,7 +268,7 @@ const App: React.FC = () => {
           />
         ) : (
           <>
-            {!searchQuery && featuredEpisode && (
+            {featuredEpisode && (
               <div className="overflow-hidden rounded-4xl hero-gradient py-10 px-4 md:py-14 md:px-12 text-white flex items-center gap-1 md:gap-8 mb-2 border border-white/5">
                 <button onClick={() => navigateFeatured('prev')} className="flex-shrink-0 w-10 h-10 md:w-14 md:h-14 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all z-10 md:hover:scale-110 md:active:scale-95">
                   <ChevronRightIcon className="w-6 h-6 md:w-8 md:h-8" />
@@ -326,22 +307,20 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {!searchQuery && (
-              <div className="sticky top-0 z-[110] -mx-4 px-4 border-b border-slate-100 overflow-y-hidden h-[68px] flex items-center group/years relative bg-slate-50">
-                <button onClick={() => scrollYears('right')} className="hidden md:flex absolute right-0 z-20 w-12 h-full items-center justify-center bg-gradient-to-l from-slate-50 to-transparent text-slate-400 hover:text-brand transition-all"><ChevronRightIcon className="w-6 h-6" /></button>
-                <div ref={yearScrollRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1.5 w-full md:px-12">
-                  {yearGroups.map(yg => (
-                    <button key={yg.year} data-year={yg.year} onClick={() => { setActiveYear(yg.year); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`flex-shrink-0 px-7 py-2 rounded-full font-bold text-base transition-all border-2 shadow-none ${activeYear === yg.year ? 'bg-brand text-white border-brand scale-105' : 'bg-white text-slate-400 border-transparent hover:border-slate-200'}`}>{yg.year}</button>
-                  ))}
-                </div>
-                <button onClick={() => scrollYears('left')} className="hidden md:flex absolute left-0 z-20 w-12 h-full items-center justify-center bg-gradient-to-r from-slate-50 to-transparent text-slate-400 hover:text-brand transition-all"><ChevronLeftIcon className="w-6 h-6" /></button>
+            <div className="sticky top-0 z-[110] -mx-4 px-4 border-b border-slate-100 overflow-y-hidden h-[68px] flex items-center group/years relative bg-slate-50">
+              <button onClick={() => scrollYears('right')} className="hidden md:flex absolute right-0 z-20 w-12 h-full items-center justify-center bg-gradient-to-l from-slate-50 to-transparent text-slate-400 hover:text-brand transition-all"><ChevronRightIcon className="w-6 h-6" /></button>
+              <div ref={yearScrollRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1.5 w-full md:px-12">
+                {yearGroups.map(yg => (
+                  <button key={yg.year} data-year={yg.year} onClick={() => { setActiveYear(yg.year); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`flex-shrink-0 px-7 py-2 rounded-full font-bold text-base transition-all border-2 shadow-none ${activeYear === yg.year ? 'bg-brand text-white border-brand scale-105' : 'bg-white text-slate-400 border-transparent hover:border-slate-200'}`}>{yg.year}</button>
+                ))}
               </div>
-            )}
+              <button onClick={() => scrollYears('left')} className="hidden md:flex absolute left-0 z-20 w-12 h-full items-center justify-center bg-gradient-to-r from-slate-50 to-transparent text-slate-400 hover:text-brand transition-all"><ChevronLeftIcon className="w-6 h-6" /></button>
+            </div>
 
             <div className="space-y-3 pb-0">
-              {filteredData?.months.map((mg) => {
-                const monthKey = `${filteredData.year}-${mg.month}`;
-                const isExpanded = expandedMonths[monthKey] || !!searchQuery;
+              {currentYearData?.months.map((mg) => {
+                const monthKey = `${activeYear}-${mg.month}`;
+                const isExpanded = expandedMonths[monthKey];
                 return (
                   <div key={monthKey} className="relative">
                     <button 
@@ -385,10 +364,6 @@ const App: React.FC = () => {
                   <a href="mailto:mobac89@gmail.com" className="text-brand hover:text-brandDark transition-colors">mobac89</a>
                 </div>
               </footer>
-
-              {searchQuery && !filteredData && (
-                <div className="py-20 text-center text-slate-300 font-bold">לא נמצאו תוכניות התואמות לחיפוש</div>
-              )}
             </div>
           </>
         )}
